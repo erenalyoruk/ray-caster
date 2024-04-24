@@ -1,0 +1,9 @@
+target_sources(
+    "RayCaster"
+    PRIVATE
+    "Color.hpp"
+    "Ray.hpp"
+    "Ray.cpp"
+    "Hit.hpp"
+    "Hit.cpp"
+)

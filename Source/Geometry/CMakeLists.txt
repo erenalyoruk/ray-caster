@@ -1,0 +1,10 @@
+target_sources(
+    "RayCaster"
+    PRIVATE
+    "Object.hpp"
+    "Object.cpp"
+    "Sphere.hpp"
+    "Sphere.cpp"
+    "ObjectGroup.hpp"
+    "ObjectGroup.cpp"
+)
