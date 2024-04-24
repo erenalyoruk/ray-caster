@@ -6,7 +6,7 @@ bool ObjectGroup::Intersect(const Ray& ray, Hit& hit, float minDistance) const
   float closestDistance{std::numeric_limits<float>::infinity()};
 
   for (const auto& object : m_objects) {
-    Hit objHit;
+    Hit objHit{};
     if (object->Intersect(ray, objHit, minDistance)) {
       hitFound = true;
 
