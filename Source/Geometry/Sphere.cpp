@@ -30,8 +30,9 @@ bool Sphere::Intersect(const Ray& ray, Hit& hit, float minDistance) const
   }
 
   hit.SetDistance(root);
-  hit.SetHitPoint(ray.AtDistance(root));
   hit.SetColor(this->GetColor());
+  hit.SetHitPoint(ray.AtDistance(root));
+  hit.SetNormal(hit.GetHitPoint() - m_center);
 
   return true;
 }

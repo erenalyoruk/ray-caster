@@ -5,4 +5,6 @@ target_sources(
     "Camera.cpp"
     "OrthoCamera.hpp"
     "OrthoCamera.cpp"
+    "PerspectiveCamera.hpp"
+    "PerspectiveCamera.cpp"
 )

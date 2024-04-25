@@ -3,6 +3,7 @@
 #include "Scene/Scene.hpp"
 
 #include <stb_image_write.h>
+#include <glm/glm.hpp>
 
 #include <iostream>
 #include <string_view>

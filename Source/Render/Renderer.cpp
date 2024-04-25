@@ -19,7 +19,15 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
 
       Hit hit{};
       if (scene.GetObjectGroup().Intersect(ray, hit, FLT_EPSILON)) {
-        const auto color{hit.GetColor()};
+        const auto objectColor{hit.GetColor()};
+
+        const Color ambient{scene.GetAmbientColor() * objectColor};
+
+        const Color diffuseFactor{
+            glm::max(glm::dot(-scene.GetLightDirection(), hit.GetNormal()), 0.0F)};
+        const Color diffuse{diffuseFactor * objectColor * scene.GetLightColor()};
+
+        const auto color{ambient + diffuse};
 
         imageData[index] = static_cast<unsigned char>(color[0] * 255.999F);
         imageData[index + 1] = static_cast<unsigned char>(color[1] * 255.999F);

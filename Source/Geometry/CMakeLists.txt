@@ -5,6 +5,12 @@ target_sources(
     "Object.cpp"
     "Sphere.hpp"
     "Sphere.cpp"
+    "Plane.hpp"
+    "Plane.cpp"
+    "Triangle.hpp"
+    "Triangle.cpp"
+    "Transformation.hpp"
+    "Transformation.cpp"
     "ObjectGroup.hpp"
     "ObjectGroup.cpp"
 )
