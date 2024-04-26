@@ -19,7 +19,8 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
 
       Hit hit;
       if (scene.GetObjectGroup().Intersect(ray, hit, FLT_EPSILON)) {
-        const Color color{TraceRay(scene, ray, glm::epsilon<float>(), 2, 1.0F, 0.0F, hit) *
+        const Color color{TraceRay(scene, ray, glm::epsilon<float>(), 3, 1.0F,
+                                   hit.GetMaterial()->GetRefractionIndex().value_or(0.0F), hit) *
                           255.999F};
 
         imageData[index] = static_cast<unsigned char>(color[0]);
@@ -44,7 +45,7 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
 Color Renderer::TraceRay(const Scene& scene, const Ray& ray, float minDistance, int bounces,
                          float weight, float refractionIndex, Hit& hit)
 {
-  if (bounces <= 0) {
+  if (bounces <= 0 || weight <= 0.0F) {
     return {};
   }
 
@@ -78,31 +79,30 @@ Color Renderer::TraceRay(const Scene& scene, const Ray& ray, float minDistance, 
     }
   }
 
-  // Transparency
-  if (hit.GetMaterial()->GetTransparentColor().has_value()) {
-    const Color transparencyColor{hit.GetMaterial()->GetTransparentColor().value()};
-
-    const float eta{hit.GetMaterial()->GetRefractionIndex().value()};
+  // Refraction
+  if (hit.GetMaterial()->GetRefractionIndex().has_value()) {
+    const float n1{refractionIndex};
+    const float n2{hit.GetMaterial()->GetRefractionIndex().value()};
 
     const glm::vec3 normal{hit.GetNormal()};
 
-    const float cosThetaI{glm::dot(ray.GetDirection(), normal)};
-    const float etaI{refractionIndex};
-    const float etaT{eta};
+    const float cosThetaI{glm::dot(-ray.GetDirection(), normal)};
+    const float eta{cosThetaI > 0.0F ? n1 / n2 : n2 / n1};
 
-    const float etaRatio{etaI / etaT};
-    const float cosThetaT{1.0F - etaRatio * etaRatio * (1.0F - cosThetaI * cosThetaI)};
+    const float cosThetaT{1.0F - eta * eta * (1.0F - cosThetaI * cosThetaI)};
 
     if (cosThetaT > 0.0F) {
-      const glm::vec3 refractedDirection{glm::normalize(
-          etaRatio * ray.GetDirection() + (etaRatio * cosThetaI - glm::sqrt(cosThetaT)) * normal)};
+      const glm::vec3 transmittedDirection{
+          glm::normalize(eta * ray.GetDirection() + (eta * cosThetaI - sqrtf(cosThetaT)) * normal)};
 
-      const Ray refractedRay{hit.GetHitPoint() - hit.GetNormal() * 0.0001F, refractedDirection};
+      const Ray transmittedRay{hit.GetHitPoint() - hit.GetNormal() * 0.0001F, transmittedDirection};
 
-      Hit refractedHit;
-      if (scene.GetObjectGroup().Intersect(refractedRay, refractedHit, minDistance)) {
-        color += transparencyColor * TraceRay(scene, refractedRay, minDistance, bounces - 1, weight,
-                                              refractionIndex, refractedHit);
+      Hit transmittedHit;
+      if (scene.GetObjectGroup().Intersect(transmittedRay, transmittedHit, minDistance)) {
+        color += TraceRay(scene, transmittedRay, minDistance, bounces - 1,
+                          weight * glm::length(hit.GetMaterial()->GetTransparentColor().value()),
+                          n2, transmittedHit) *
+                 hit.GetMaterial()->GetTransparentColor().value();
       }
     }
   }
