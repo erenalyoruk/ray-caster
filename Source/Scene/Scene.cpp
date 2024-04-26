@@ -167,7 +167,7 @@ std::vector<std::shared_ptr<Light>> Scene::LoadLights(const nlohmann::json& json
     const auto direction{LoadVector(l["direction"])};
     const Color color{LoadVector(l["color"])};
 
-    lights.push_back(std::make_shared<DirectionalLight>(direction, color));
+    lights.push_back(std::make_shared<DirectionalLight>(color, direction));
   } else if (json.contains("lights")) {
     for (const auto& light : json["lights"]) {
       lights.push_back(std::move(LoadLight(light)));
