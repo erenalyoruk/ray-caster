@@ -127,7 +127,7 @@ std::shared_ptr<Material> Scene::LoadMaterial(const nlohmann::json& json)
       material->SetReflectiveColor(reflectiveColor);
     }
 
-    if (m.contains("transparentColor") && m.contains("idnexOfRefraction")) {
+    if (m.contains("transparentColor") && m.contains("indexOfRefraction")) {
       const Color transparentColor{LoadVector(m["transparentColor"])};
       const auto refractionIndex{LoadFloat(m["indexOfRefraction"])};
 
