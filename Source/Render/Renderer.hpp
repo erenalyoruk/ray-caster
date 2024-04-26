@@ -24,5 +24,5 @@ class Renderer
   int m_height;
 
   static Color TraceRay(const Scene& scene, const Ray& ray, float minDistance, int bounces,
-                        float weigth, float refractionIndex, Hit& hit);
+                        float weight, float refractionIndex, Hit& hit);
 };

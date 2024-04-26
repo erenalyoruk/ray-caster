@@ -19,7 +19,7 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
 
       Hit hit;
       if (scene.GetObjectGroup().Intersect(ray, hit, FLT_EPSILON)) {
-        const Color color{TraceRay(scene, ray, glm::epsilon<float>(), 1, 1.0F, 0.0F, hit) *
+        const Color color{TraceRay(scene, ray, glm::epsilon<float>(), 2, 1.0F, 0.0F, hit) *
                           255.999F};
 
         imageData[index] = static_cast<unsigned char>(color[0]);
@@ -41,9 +41,13 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
   std::cout << filename << " rendered!\n";
 }
 
-Color Renderer::TraceRay(const Scene& scene, const Ray& ray, float minDistance, int /*bounces*/,
-                         float /*weight*/, float /*refractionIndex*/, Hit& hit)
+Color Renderer::TraceRay(const Scene& scene, const Ray& ray, float minDistance, int bounces,
+                         float weight, float refractionIndex, Hit& hit)
 {
+  if (bounces <= 0) {
+    return {};
+  }
+
   Color color{scene.GetAmbientColor() * hit.GetMaterial()->GetDiffuseColor()};
 
   // Shadows
@@ -55,6 +59,50 @@ Color Renderer::TraceRay(const Scene& scene, const Ray& ray, float minDistance, 
       Hit tempHit;
       if (!scene.GetObjectGroup().Intersect(shadowRay, tempHit, minDistance)) {
         color += hit.GetMaterial()->Shade(ray, hit, light);
+      }
+    }
+  }
+
+  // Reflection
+  if (hit.GetMaterial()->GetReflectiveColor().has_value()) {
+    const Color reflectiveColor{hit.GetMaterial()->GetReflectiveColor().value()};
+
+    const glm::vec3 reflectedDirection{glm::reflect(ray.GetDirection(), hit.GetNormal())};
+
+    const Ray reflectedRay{hit.GetHitPoint() + hit.GetNormal() * 0.0001F, reflectedDirection};
+
+    Hit reflectedHit;
+    if (scene.GetObjectGroup().Intersect(reflectedRay, reflectedHit, minDistance)) {
+      color += reflectiveColor * TraceRay(scene, reflectedRay, minDistance, bounces - 1, weight,
+                                          refractionIndex, reflectedHit);
+    }
+  }
+
+  // Transparency
+  if (hit.GetMaterial()->GetTransparentColor().has_value()) {
+    const Color transparencyColor{hit.GetMaterial()->GetTransparentColor().value()};
+
+    const float eta{hit.GetMaterial()->GetRefractionIndex().value()};
+
+    const glm::vec3 normal{hit.GetNormal()};
+
+    const float cosThetaI{glm::dot(ray.GetDirection(), normal)};
+    const float etaI{refractionIndex};
+    const float etaT{eta};
+
+    const float etaRatio{etaI / etaT};
+    const float cosThetaT{1.0F - etaRatio * etaRatio * (1.0F - cosThetaI * cosThetaI)};
+
+    if (cosThetaT > 0.0F) {
+      const glm::vec3 refractedDirection{glm::normalize(
+          etaRatio * ray.GetDirection() + (etaRatio * cosThetaI - glm::sqrt(cosThetaT)) * normal)};
+
+      const Ray refractedRay{hit.GetHitPoint() - hit.GetNormal() * 0.0001F, refractedDirection};
+
+      Hit refractedHit;
+      if (scene.GetObjectGroup().Intersect(refractedRay, refractedHit, minDistance)) {
+        color += transparencyColor * TraceRay(scene, refractedRay, minDistance, bounces - 1, weight,
+                                              refractionIndex, refractedHit);
       }
     }
   }

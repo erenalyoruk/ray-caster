@@ -16,6 +16,7 @@ class Transformation : public Object
   bool Intersect(const Ray& ray, Hit& hit, float minDistance) const override;
 
  private:
+  glm::mat4 m_matrix;
   glm::mat4 m_inverseMatrix;
 
   std::unique_ptr<Object> m_object;
