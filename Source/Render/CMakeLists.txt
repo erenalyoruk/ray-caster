@@ -6,3 +6,5 @@ target_sources(
 )
 
 add_subdirectory("Camera")
+add_subdirectory("Light")
+add_subdirectory("Material")

@@ -7,7 +7,7 @@
 class Plane : public Object
 {
  public:
-  Plane(const Color& color, float distance, const glm::vec3& normal);
+  Plane(std::shared_ptr<Material> material, float distance, const glm::vec3& normal);
 
   bool Intersect(const Ray& ray, Hit& hit, float minDistance) const override;
 

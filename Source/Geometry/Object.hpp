@@ -1,10 +1,12 @@
 #pragma once
 
-#include "Core/Color.hpp"
 #include "Core/Hit.hpp"
 #include "Core/Ray.hpp"
+#include "Render/Material/Material.hpp"
 
 #include <glm/vec3.hpp>
+
+#include <memory>
 
 class Object
 {
@@ -13,12 +15,12 @@ class Object
 
   virtual ~Object() = default;
 
-  explicit Object(const Color& color);
+  explicit Object(std::shared_ptr<Material> material);
 
   virtual bool Intersect(const Ray& ray, Hit& hit, float minDistance) const = 0;
 
-  const Color& GetColor() const;
+  std::shared_ptr<Material> GetMaterial() const;
 
  private:
-  Color m_color;
+  std::shared_ptr<Material> m_material;
 };

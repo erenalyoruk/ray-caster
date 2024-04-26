@@ -5,9 +5,9 @@ float Hit::GetDistance() const
   return m_distance;
 }
 
-const Color& Hit::GetColor() const
+const std::shared_ptr<Material>& Hit::GetMaterial() const
 {
-  return m_color;
+  return m_material;
 }
 
 const glm::vec3& Hit::GetHitPoint() const
@@ -25,9 +25,10 @@ void Hit::SetDistance(float distance)
   m_distance = distance;
 }
 
-void Hit::SetColor(const Color& color)
+void Hit::SetMaterial(std::shared_ptr<Material> material)
 {
-  m_color = color;
+  // i know, i want to share ownership
+  m_material = material;
 }
 
 void Hit::SetHitPoint(const glm::vec3& hitPoint)

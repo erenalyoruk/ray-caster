@@ -1,8 +1,8 @@
 #include "Triangle.hpp"
 
-Triangle::Triangle(const Color& color, const glm::vec3& v1, const glm::vec3& v2,
+Triangle::Triangle(std::shared_ptr<Material> material, const glm::vec3& v1, const glm::vec3& v2,
                    const glm::vec3& v3)
-    : Object(color),
+    : Object(material),
       m_v1{v1},
       m_v2{v2},
       m_v3{v3},
@@ -46,7 +46,7 @@ bool Triangle::Intersect(const Ray& ray, Hit& hit, float minDistance) const
   hit.SetDistance(distance);
   hit.SetHitPoint(ray.AtDistance(distance));
   hit.SetNormal(m_normal);
-  hit.SetColor(this->GetColor());
+  hit.SetMaterial(this->GetMaterial());
 
   return true;
 }

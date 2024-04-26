@@ -7,7 +7,7 @@
 class Sphere : public Object
 {
  public:
-  Sphere(const Color& color, float radius, const glm::vec3& center);
+  Sphere(std::shared_ptr<Material> material, float radius, const glm::vec3& center);
 
   bool Intersect(const Ray& ray, Hit& hit, float minDistance) const override;
 

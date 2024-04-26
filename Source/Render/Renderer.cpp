@@ -17,27 +17,20 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
 
       Ray ray{scene.GetCamera()->GenerateRay(u, v)};
 
-      Hit hit{};
+      Hit hit;
       if (scene.GetObjectGroup().Intersect(ray, hit, FLT_EPSILON)) {
-        const auto objectColor{hit.GetColor()};
+        const Color color{TraceRay(scene, ray, glm::epsilon<float>(), 1, 1.0F, 0.0F, hit) *
+                          255.999F};
 
-        const Color ambient{scene.GetAmbientColor() * objectColor};
-
-        const Color diffuseFactor{
-            glm::max(glm::dot(-scene.GetLightDirection(), hit.GetNormal()), 0.0F)};
-        const Color diffuse{diffuseFactor * objectColor * scene.GetLightColor()};
-
-        const auto color{ambient + diffuse};
-
-        imageData[index] = static_cast<unsigned char>(color[0] * 255.999F);
-        imageData[index + 1] = static_cast<unsigned char>(color[1] * 255.999F);
-        imageData[index + 2] = static_cast<unsigned char>(color[2] * 255.999F);
+        imageData[index] = static_cast<unsigned char>(color[0]);
+        imageData[index + 1] = static_cast<unsigned char>(color[1]);
+        imageData[index + 2] = static_cast<unsigned char>(color[2]);
       } else {
-        const auto color{scene.GetBackgroundColor()};
+        const auto color{scene.GetBackgroundColor() * 255.999F};
 
-        imageData[index] = static_cast<unsigned char>(color[0] * 255.999F);
-        imageData[index + 1] = static_cast<unsigned char>(color[1] * 255.999F);
-        imageData[index + 2] = static_cast<unsigned char>(color[2] * 255.999F);
+        imageData[index] = static_cast<unsigned char>(color[0]);
+        imageData[index + 1] = static_cast<unsigned char>(color[1]);
+        imageData[index + 2] = static_cast<unsigned char>(color[2]);
       }
     }
   }
@@ -46,4 +39,25 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
   stbi_write_png(filename.begin(), m_width, m_height, 3, imageData.data(), m_width * 3);
 
   std::cout << filename << " rendered!\n";
+}
+
+Color Renderer::TraceRay(const Scene& scene, const Ray& ray, float minDistance, int /*bounces*/,
+                         float /*weight*/, float /*refractionIndex*/, Hit& hit)
+{
+  Color color{scene.GetAmbientColor() * hit.GetMaterial()->GetDiffuseColor()};
+
+  // Shadows
+  for (const auto& light : scene.GetLights()) {
+    if (auto directionalLight{std::dynamic_pointer_cast<DirectionalLight>(light)}) {
+      const Ray shadowRay{hit.GetHitPoint() + hit.GetNormal() * 0.0001F,
+                          -directionalLight->GetDirection()};
+
+      Hit tempHit;
+      if (!scene.GetObjectGroup().Intersect(shadowRay, tempHit, minDistance)) {
+        color += hit.GetMaterial()->Shade(ray, hit, light);
+      }
+    }
+  }
+
+  return glm::clamp(color, 0.0F, 1.0F);
 }

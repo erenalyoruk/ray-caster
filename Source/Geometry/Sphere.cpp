@@ -1,7 +1,7 @@
 #include "Sphere.hpp"
 
-Sphere::Sphere(const Color& color, float radius, const glm::vec3& center)
-    : Object(color), m_radius{radius}, m_center{center}
+Sphere::Sphere(std::shared_ptr<Material> material, float radius, const glm::vec3& center)
+    : Object(material), m_radius{radius}, m_center{center}
 {
 }
 
@@ -30,7 +30,7 @@ bool Sphere::Intersect(const Ray& ray, Hit& hit, float minDistance) const
   }
 
   hit.SetDistance(root);
-  hit.SetColor(this->GetColor());
+  hit.SetMaterial(this->GetMaterial());
   hit.SetHitPoint(ray.AtDistance(root));
   hit.SetNormal(hit.GetHitPoint() - m_center);
 

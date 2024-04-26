@@ -3,10 +3,7 @@
 using json = nlohmann::json;
 
 Scene::Scene(std::string&& filename)
-    : m_backgroundColor{0.0F, 0.0F, 0.0F},
-      m_ambientColor{0.0F, 0.0F, 0.0F},
-      m_lightDirection{0.0F, 0.0F, 0.0F},
-      m_lightColor{0.0F, 0.0F, 0.0F}
+    : m_backgroundColor{0.0F, 0.0F, 0.0F}, m_ambientColor{0.0F, 0.0F, 0.0F}
 {
   std::ifstream file(filename);
   if (!file.is_open()) {
@@ -23,10 +20,11 @@ Scene::Scene(std::string&& filename)
   m_backgroundColor = LoadColor(data["background"]["color"]);
   m_ambientColor = LoadColor(data["background"]["ambient"]);
 
-  m_lightDirection = glm::normalize(LoadVector(data["light"]["direction"]));
-  m_lightColor = LoadColor(data["light"]["color"]);
+  m_lights = LoadLights(data);
 
-  m_objectGroup = LoadObjectGroup(data["group"]);
+  m_materials = LoadMaterials(data["materials"]);
+
+  m_objectGroup = LoadObjectGroup(data["group"], m_materials);
 }
 
 const std::shared_ptr<Camera>& Scene::GetCamera() const
@@ -44,9 +42,19 @@ const Color& Scene::GetAmbientColor() const
   return m_ambientColor;
 }
 
+const std::vector<std::shared_ptr<Light>>& Scene::GetLights() const
+{
+  return m_lights;
+}
+
 const ObjectGroup& Scene::GetObjectGroup() const
 {
   return m_objectGroup;
+}
+
+int Scene::LoadInt(const json& json)
+{
+  return json.get<int>();
 }
 
 float Scene::LoadFloat(const json& json)
@@ -97,26 +105,101 @@ Color Scene::LoadColor(const nlohmann::json& json)
   return LoadVector(json);
 }
 
-const glm::vec3& Scene::GetLightDirection() const
+std::shared_ptr<Material> Scene::LoadMaterial(const nlohmann::json& json)
 {
-  return m_lightDirection;
+  if (json.contains("phongMaterial")) {
+    const auto& m{json["phongMaterial"]};
+
+    const Color diffuseColor{LoadVector(m["diffuseColor"])};
+    auto material{std::make_shared<PhongMaterial>(diffuseColor)};
+
+    if (m.contains("specularColor") && m.contains("exponent")) {
+      const Color specularColor{LoadVector(m["specularColor"])};
+      const auto exponent{LoadFloat(m["exponent"])};
+
+      material->SetSpecularColor(specularColor);
+      material->SetExponent(exponent);
+    }
+
+    if (m.contains("reflectiveColor")) {
+      const Color reflectiveColor{LoadVector(m["reflectiveColor"])};
+
+      material->SetReflectiveColor(reflectiveColor);
+    }
+
+    if (m.contains("transparentColor") && m.contains("idnexOfRefraction")) {
+      const Color transparentColor{LoadVector(m["transparentColor"])};
+      const auto refractionIndex{LoadFloat(m["indexOfRefraction"])};
+
+      material->SetTransparentColor(transparentColor);
+      material->SetRefractionIndex(refractionIndex);
+    }
+
+    return material;
+  }
+
+  std::cerr << "Material type is not implemented!\n";
+  return nullptr;
 }
 
-const Color& Scene::GetLightColor() const
+std::shared_ptr<Light> Scene::LoadLight(const nlohmann::json& json)
 {
-  return m_lightColor;
+  if (json.contains("directionalLight")) {
+    const auto& l{json["directionalLight"]};
+
+    const auto direction{LoadVector(l["direction"])};
+    const Color color{LoadVector(l["color"])};
+
+    return std::make_shared<DirectionalLight>(color, direction);
+  };
+
+  std::cerr << "Light type is not implemented!\n";
+  return nullptr;
 }
 
-std::unique_ptr<Object> Scene::LoadObject(const nlohmann::json& json)
+std::vector<std::shared_ptr<Light>> Scene::LoadLights(const nlohmann::json& json)
+{
+  std::vector<std::shared_ptr<Light>> lights;
+
+  if (json.contains("light")) {
+    const auto& l{json["light"]};
+
+    const auto direction{LoadVector(l["direction"])};
+    const Color color{LoadVector(l["color"])};
+
+    lights.push_back(std::make_shared<DirectionalLight>(direction, color));
+  } else if (json.contains("lights")) {
+    for (const auto& light : json["lights"]) {
+      lights.push_back(std::move(LoadLight(light)));
+    }
+  }
+
+  return lights;
+}
+
+std::vector<std::shared_ptr<Material>> Scene::LoadMaterials(const nlohmann::json& json)
+{
+  std::vector<std::shared_ptr<Material>> materials;
+
+  for (const auto& m : json) {
+    materials.push_back(std::move(LoadMaterial(m)));
+  }
+
+  return materials;
+}
+
+std::unique_ptr<Object> Scene::LoadObject(const nlohmann::json& json,
+                                          const std::vector<std::shared_ptr<Material>>& materials)
 {
   if (json.contains("sphere")) {
     const auto& s{json["sphere"]};
 
     const glm::vec3 center{LoadVector(s["center"])};
     const float radius{LoadFloat(s["radius"])};
-    const Color color{LoadVector(s["color"])};
+    const auto materialIndex{LoadInt(s["material"])};
+    const auto& material{materials.at(materialIndex)};
 
-    return std::make_unique<Sphere>(color, radius, center);
+    return std::make_unique<Sphere>(material, radius, center);
   }
 
   if (json.contains("plane")) {
@@ -124,9 +207,10 @@ std::unique_ptr<Object> Scene::LoadObject(const nlohmann::json& json)
 
     const glm::vec3 normal{LoadVector(p["normal"])};
     const float offset{LoadFloat(p["offset"])};
-    const Color color{LoadVector(p["color"])};
+    const auto materialIndex{LoadInt(p["material"])};
+    const auto& material{materials.at(materialIndex)};
 
-    return std::make_unique<Plane>(color, offset, normal);
+    return std::make_unique<Plane>(material, offset, normal);
   }
 
   if (json.contains("triangle")) {
@@ -135,9 +219,10 @@ std::unique_ptr<Object> Scene::LoadObject(const nlohmann::json& json)
     const glm::vec3 v1{LoadVector(t["v1"])};
     const glm::vec3 v2{LoadVector(t["v2"])};
     const glm::vec3 v3{LoadVector(t["v3"])};
-    const Color color{LoadVector(t["color"])};
+    const auto materialIndex{LoadInt(t["material"])};
+    const auto& material{materials.at(materialIndex)};
 
-    return std::make_unique<Triangle>(color, v1, v2, v3);
+    return std::make_unique<Triangle>(material, v1, v2, v3);
   }
 
   std::cerr << "Object type is not implemented!\n";
@@ -145,7 +230,8 @@ std::unique_ptr<Object> Scene::LoadObject(const nlohmann::json& json)
   return nullptr;
 }
 
-ObjectGroup Scene::LoadObjectGroup(const nlohmann::json& json)
+ObjectGroup Scene::LoadObjectGroup(const nlohmann::json& json,
+                                   const std::vector<std::shared_ptr<Material>>& materials)
 {
   ObjectGroup objectGroup;
 
@@ -180,9 +266,10 @@ ObjectGroup Scene::LoadObjectGroup(const nlohmann::json& json)
 
       glm::mat4 matrix{translateMatrix * rotateMatrix * scaleMatrix};
 
-      objectGroup.Add(std::make_unique<Transformation>(std::move(LoadObject(t["object"])), matrix));
+      objectGroup.Add(
+          std::make_unique<Transformation>(std::move(LoadObject(t["object"], materials)), matrix));
     } else {
-      auto object{LoadObject(obj)};
+      auto object{LoadObject(obj, materials)};
       if (object != nullptr) {
         objectGroup.Add(std::move(object));
       }

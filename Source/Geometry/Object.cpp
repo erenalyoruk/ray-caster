@@ -1,10 +1,11 @@
 #include "Object.hpp"
 
-Object::Object() : Object({0.0F, 0.0F, 0.0F}) {}
+Object::Object() : Object(nullptr) {}
 
-Object::Object(const Color& color) : m_color{color} {}
+// i just want to share ownership
+Object::Object(std::shared_ptr<Material> material) : m_material{material} {}
 
-const Color& Object::GetColor() const
+std::shared_ptr<Material> Object::GetMaterial() const
 {
-  return m_color;
+  return m_material;
 }

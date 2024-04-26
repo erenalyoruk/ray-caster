@@ -7,7 +7,8 @@
 class Triangle : public Object
 {
  public:
-  Triangle(const Color& color, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3);
+  Triangle(std::shared_ptr<Material> material, const glm::vec3& v1, const glm::vec3& v2,
+           const glm::vec3& v3);
 
   bool Intersect(const Ray& ray, Hit& hit, float minDistance) const override;
 
