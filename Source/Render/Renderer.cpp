@@ -19,8 +19,8 @@ void Renderer::Render(const Scene& scene, std::string_view filename) const
 
       Hit hit;
       if (scene.GetObjectGroup().Intersect(ray, hit, FLT_EPSILON)) {
-        const Color color{TraceRay(scene, ray, glm::epsilon<float>(), 3, 1.0F,
-                                   hit.GetMaterial()->GetRefractionIndex().value_or(0.0F), hit) *
+        const Color color{TraceRay(scene, ray, glm::epsilon<float>(), 5, 1.0F,
+                                   hit.GetMaterial()->GetRefractionIndex().value_or(0.5F), hit) *
                           255.999F};
 
         imageData[index] = static_cast<unsigned char>(color[0]);
@@ -80,22 +80,18 @@ Color Renderer::TraceRay(const Scene& scene, const Ray& ray, float minDistance, 
   }
 
   // Refraction
-  if (hit.GetMaterial()->GetRefractionIndex().has_value()) {
-    const float n1{refractionIndex};
-    const float n2{hit.GetMaterial()->GetRefractionIndex().value()};
+  if (hit.GetMaterial()->GetRefractionIndex().has_value() &&
+      hit.GetMaterial()->GetReflectiveColor().has_value() &&
+      glm::length(hit.GetMaterial()->GetReflectiveColor().value()) > 0.0F) {
+    const auto n1{refractionIndex};
+    const auto n2{hit.GetMaterial()->GetRefractionIndex().value()};
 
-    const glm::vec3 normal{hit.GetNormal()};
+    const auto normal{hit.GetNormal()};
 
-    const float cosThetaI{glm::dot(-ray.GetDirection(), normal)};
-    const float eta{cosThetaI > 0.0F ? n1 / n2 : n2 / n1};
+    const glm::vec3 refractedDirection{glm::refract(ray.GetDirection(), normal, n1 / n2)};
 
-    const float cosThetaT{1.0F - eta * eta * (1.0F - cosThetaI * cosThetaI)};
-
-    if (cosThetaT > 0.0F) {
-      const glm::vec3 transmittedDirection{
-          glm::normalize(eta * ray.GetDirection() + (eta * cosThetaI - sqrtf(cosThetaT)) * normal)};
-
-      const Ray transmittedRay{hit.GetHitPoint() - hit.GetNormal() * 0.0001F, transmittedDirection};
+    if (glm::length(refractedDirection) > 0.0F) {
+      Ray transmittedRay{hit.GetHitPoint() - hit.GetNormal() * 0.0001F, refractedDirection};
 
       Hit transmittedHit;
       if (scene.GetObjectGroup().Intersect(transmittedRay, transmittedHit, minDistance)) {
